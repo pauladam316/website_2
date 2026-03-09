@@ -5,6 +5,14 @@ node_modules/
 dist/
 .astro/
 
+# Optimized / generated assets
+3d-prints-opt/
+astrophotography-thumbs/
+*-opt/
+*-opt
+*-thumbs/
+*-thumbs
+
 # Environment
 .env
 .env.*
