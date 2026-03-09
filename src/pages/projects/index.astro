@@ -26,6 +26,8 @@ const MODEL_FILE = 'model.obj';
 const CARD_MAX_WIDTH = 800;
 const ALBUM_MAX_WIDTH = 1200;
 const OPT_DIR = path.join(process.cwd(), 'public', '3d-prints-opt');
+/** Base URL for asset paths (e.g. '/' or '/repo-name/') so deployment to a subpath works. */
+const BASE = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
 
 function formatFolderName(folder: string): string {
 	return folder
@@ -50,16 +52,16 @@ async function getOptimizedImageUrl(
 		if (fs.existsSync(outPath)) {
 			const outStat = fs.statSync(outPath);
 			if (outStat.mtimeMs >= stat.mtimeMs) {
-				return `/3d-prints-opt/${folder}/${filename}`;
+				return `${BASE}3d-prints-opt/${folder}/${filename}`;
 			}
 		}
 
 		await sharp(sourcePath)
 			.resize(maxWidth, null, { withoutEnlargement: true })
 			.toFile(outPath);
-		return `/3d-prints-opt/${folder}/${filename}`;
+		return `${BASE}3d-prints-opt/${folder}/${filename}`;
 	} catch {
-		return `/3d-prints/${folder}/${filename}`;
+		return `${BASE}3d-prints/${folder}/${filename}`;
 	}
 }
 
@@ -109,7 +111,7 @@ async function getPrintsFromFolders(): Promise<Print[]> {
 			}
 		}
 
-		const baseUrl = `/3d-prints/${folder}`;
+		const baseUrl = `${BASE}3d-prints/${folder}`;
 		let imageUrl: string | null = null;
 		if (hasCard) {
 			const cardPath = path.join(dirPath, CARD_FILE);
