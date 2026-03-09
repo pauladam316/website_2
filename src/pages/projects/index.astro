@@ -21,11 +21,8 @@ interface Print {
 
 const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
 const VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv'];
-const CARD_FILE = 'card.png';
-const MODEL_FILE = 'model.obj';
-const CARD_MAX_WIDTH = 800;
-const ALBUM_MAX_WIDTH = 1200;
-const OPT_DIR = path.join(process.cwd(), 'public', '3d-prints-opt');
+const CARD_BASENAME = 'card'; // card.png (any case)
+const MODEL_BASENAME = 'model'; // model.obj (any case)
 /** Base URL for asset paths (e.g. '/' or '/repo-name/') so deployment to a subpath works. */
 const BASE = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
 
@@ -36,36 +33,23 @@ function formatFolderName(folder: string): string {
 		.join(' ');
 }
 
-async function getOptimizedImageUrl(
-	sourcePath: string,
-	folder: string,
-	filename: string,
-	maxWidth: number
-): Promise<string> {
-	try {
-		const sharp = (await import('sharp')).default;
-		const outDir = path.join(OPT_DIR, folder);
-		const outPath = path.join(outDir, filename);
-		fs.mkdirSync(outDir, { recursive: true });
-
-		const stat = fs.statSync(sourcePath);
-		if (fs.existsSync(outPath)) {
-			const outStat = fs.statSync(outPath);
-			if (outStat.mtimeMs >= stat.mtimeMs) {
-				return `${BASE}3d-prints-opt/${folder}/${filename}`;
-			}
-		}
-
-		await sharp(sourcePath)
-			.resize(maxWidth, null, { withoutEnlargement: true })
-			.toFile(outPath);
-		return `${BASE}3d-prints-opt/${folder}/${filename}`;
-	} catch {
-		return `${BASE}3d-prints/${folder}/${filename}`;
+/** Find a file in the list whose name (without ext) matches basename (case-insensitive). Returns the actual filename from the list so URLs match the filesystem on case-sensitive servers. */
+function findFileByBasename(files: string[], basename: string, allowedExts: string[]): string | null {
+	const lower = basename.toLowerCase();
+	for (const f of files) {
+		const ext = path.extname(f).toLowerCase();
+		const nameWithoutExt = path.basename(f, ext);
+		if (nameWithoutExt.toLowerCase() === lower && allowedExts.includes(ext)) return f;
 	}
+	return null;
 }
 
-async function getPrintsFromFolders(): Promise<Print[]> {
+/** Returns the URL for a project image. We always use the source path (3d-prints/) because Astro copies public/ to dist/ *before* the build runs, so files we write to 3d-prints-opt/ during the build never make it into the deployed output. */
+function getProjectImageUrl(folder: string, filename: string): string {
+	return `${BASE}3d-prints/${folder}/${filename}`;
+}
+
+function getPrintsFromFolders(): Print[] {
 	const baseDir = path.join(process.cwd(), 'public', '3d-prints');
 	if (!fs.existsSync(baseDir)) return [];
 
@@ -79,12 +63,15 @@ async function getPrintsFromFolders(): Promise<Print[]> {
 		const dirPath = path.join(baseDir, folder);
 		const files = fs.readdirSync(dirPath);
 
-		const hasModel = files.includes(MODEL_FILE);
-		const hasCard = files.includes(CARD_FILE);
+		const cardFilename = findFileByBasename(files, CARD_BASENAME, IMAGE_EXTS);
+		const modelFilename = findFileByBasename(files, MODEL_BASENAME, ['.obj']);
+		const hasModel = modelFilename !== null;
+		const hasCard = cardFilename !== null;
 		const albumImages = files
 			.filter((f) => {
 				const ext = path.extname(f).toLowerCase();
-				return IMAGE_EXTS.includes(ext) && f !== CARD_FILE;
+				const base = path.basename(f, ext).toLowerCase();
+				return IMAGE_EXTS.includes(ext) && base !== CARD_BASENAME;
 			})
 			.sort();
 		const albumVideos = files
@@ -113,15 +100,10 @@ async function getPrintsFromFolders(): Promise<Print[]> {
 
 		const baseUrl = `${BASE}3d-prints/${folder}`;
 		let imageUrl: string | null = null;
-		if (hasCard) {
-			const cardPath = path.join(dirPath, CARD_FILE);
-			imageUrl = await getOptimizedImageUrl(cardPath, folder, CARD_FILE, CARD_MAX_WIDTH);
+		if (hasCard && cardFilename) {
+			imageUrl = getProjectImageUrl(folder, cardFilename);
 		}
-		const photoUrls = await Promise.all(
-			albumImages.map((f) =>
-				getOptimizedImageUrl(path.join(dirPath, f), folder, f, ALBUM_MAX_WIDTH)
-			)
-		);
+		const photoUrls = albumImages.map((f) => getProjectImageUrl(folder, f));
 
 		const videoUrls = albumVideos.map((f) => `${baseUrl}/${f}`);
 
@@ -130,7 +112,7 @@ async function getPrintsFromFolders(): Promise<Print[]> {
 			name,
 			description,
 			image: imageUrl,
-			modelUrl: hasModel ? `${baseUrl}/${MODEL_FILE}` : null,
+			modelUrl: hasModel && modelFilename ? `${baseUrl}/${modelFilename}` : null,
 			photos: photoUrls,
 			videos: videoUrls,
 			cameraZoom,
@@ -149,7 +131,7 @@ function sortByOrderThenName(a: Print, b: Print): number {
 	return a.name.localeCompare(b.name);
 }
 
-const allPrints: Print[] = await getPrintsFromFolders();
+const allPrints: Print[] = getPrintsFromFolders();
 const featuredProjects = allPrints.filter((p) => p.featured === true).sort(sortByOrderThenName);
 const otherProjects = allPrints.filter((p) => p.featured !== true).sort(sortByOrderThenName);
 
