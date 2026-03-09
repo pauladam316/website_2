@@ -1,0 +1,8 @@
+{
+  "name": "Telescope Controller",
+  "description": "A telescope mounted controller for controlling dew heaters, lens caps and flat lights.",
+  "cameraZoom": 1,
+  "featured": true,
+  "order": 3,
+  "blogPost": "/blog/observatory-build-8"
+}

@@ -31,6 +31,19 @@ jobs:
       - name: Build Astro site
         run: npm run build
 
+      # copy-blog-assets integration writes blog media (gif, video, etc.) into dist/blog/<slug>/
+      - name: Verify blog assets in build output
+        run: |
+          echo "Blog dirs in dist:"
+          ls -la dist/blog 2>/dev/null || true
+          echo "Sample blog assets (observatory-build-4):"
+          ls -la dist/blog/observatory-build-4 2>/dev/null || true
+          count=$(find dist/blog -type f \( -name '*.gif' -o -name '*.GIF' -o -name '*.mov' -o -name '*.MOV' -o -name '*.mp4' -o -name '*.MP4' \) 2>/dev/null | wc -l)
+          echo "Blog media files (gif/video) found: $count"
+          if [ "$count" -eq 0 ]; then
+            echo "::warning::No blog GIF/video assets found in dist/blog - check copy-blog-assets integration"
+          fi
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

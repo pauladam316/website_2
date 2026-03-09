@@ -1,0 +1,8 @@
+{
+  "name": "Telescope Lens Cap",
+  "description": "An automatic lens cap for the telescope with integrated flat light.",
+  "cameraZoom": 1,
+  "featured": false,
+  "order": 0,
+  "blogPost": "/blog/observatory-build-8"
+}

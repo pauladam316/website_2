@@ -21,6 +21,7 @@ Create **one folder per project** inside `3d-prints/`. Each folder is one card o
 | `cameraZoom` | 3D viewer zoom; `> 1` = zoom out, `< 1` = zoom in. |
 | **`featured`** | `true` = show in **Featured projects**; otherwise in **Other projects**. |
 | **`order`** | Sort order within that section. Lower number = earlier. Ties are broken by name. |
+| **`blogPost`** | Optional. Blog post slug or path (e.g. `"observatory-build-8"` or `"/blog/observatory-build-8"`). Shows a “Read post →” link on the card and in the modal. |
 
 ## Example
 

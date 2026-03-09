@@ -55,8 +55,8 @@ export function copyBlogAssets(): AstroIntegration {
 					stream.pipe(res);
 				});
 			},
-			'build:done': async () => {
-				const outDir = path.join(ROOT, 'dist');
+			'astro:build:done': async ({ dir }) => {
+				const outDir = fileURLToPath(dir);
 				const blogOut = path.join(outDir, 'blog');
 
 				if (!fs.existsSync(CONTENT_BLOG)) return;

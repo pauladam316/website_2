@@ -17,6 +17,8 @@ interface Print {
 	featured?: boolean;
 	/** Sort order within section (featured or other). Lower = earlier. Falls back to name sort when equal/missing. */
 	order?: number;
+	/** Optional blog post slug or path (e.g. "observatory-build-8" or "/blog/observatory-build-8"). Shown as a link on the card and in the modal. */
+	blogPost?: string;
 }
 
 const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
@@ -25,6 +27,13 @@ const CARD_BASENAME = 'card'; // card.png (any case)
 const MODEL_BASENAME = 'model'; // model.obj (any case)
 /** Base URL for asset paths (e.g. '/' or '/repo-name/') so deployment to a subpath works. */
 const BASE = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+
+function blogPostHref(blogPost: string | undefined): string {
+	if (!blogPost) return '';
+	if (blogPost.startsWith('http')) return blogPost;
+	if (blogPost.startsWith('/')) return BASE + blogPost.slice(1);
+	return `${BASE}blog/${blogPost}`;
+}
 
 function formatFolderName(folder: string): string {
 	return folder
@@ -84,6 +93,7 @@ function getPrintsFromFolders(): Print[] {
 		let cameraZoom: number | undefined;
 		let featured: boolean | undefined;
 		let order: number | undefined;
+		let blogPost: string | undefined;
 		const infoPath = path.join(dirPath, 'info.json');
 		if (fs.existsSync(infoPath)) {
 			try {
@@ -93,6 +103,7 @@ function getPrintsFromFolders(): Print[] {
 				if (typeof info.cameraZoom === 'number') cameraZoom = info.cameraZoom;
 				if (typeof info.featured === 'boolean') featured = info.featured;
 				if (typeof info.order === 'number') order = info.order;
+				if (typeof info.blogPost === 'string' && info.blogPost.trim()) blogPost = info.blogPost.trim();
 			} catch {
 				// ignore invalid info.json
 			}
@@ -118,6 +129,7 @@ function getPrintsFromFolders(): Print[] {
 			cameraZoom,
 			featured,
 			order,
+			blogPost,
 		});
 	}
 
@@ -151,9 +163,55 @@ const placeholderSvg = (name: string) =>
 				<h2 class="text-2xl font-semibold text-white mb-6">Featured projects</h2>
 				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="prints-gallery-featured">
 					{featuredProjects.map((print) => (
+						<div class="print-card group rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden hover:border-zinc-600 hover:bg-zinc-800/50 transition-all duration-200">
+							<button
+								type="button"
+								class="text-left w-full focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-950 rounded-xl"
+								data-print
+								data-name={print.name}
+								data-description={print.description}
+								data-model-url={print.modelUrl ?? ''}
+								data-card-image={print.image ?? ''}
+								data-camera-zoom={print.cameraZoom ?? ''}
+								data-photos={JSON.stringify(print.photos ?? [])}
+								data-videos={JSON.stringify(print.videos ?? [])}
+								data-blog-post={print.blogPost ?? ''}
+								data-blog-post-href={print.blogPost ? blogPostHref(print.blogPost) : ''}
+							>
+								<div class="aspect-[4/3] bg-zinc-800 flex items-center justify-center overflow-hidden relative">
+									<img
+										src={print.image ?? placeholderSvg(print.name)}
+										alt={print.name}
+										class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+										loading="lazy"
+									/>
+								</div>
+								<div class="p-4">
+									<h2 class="font-semibold text-white group-hover:text-zinc-100">{print.name}</h2>
+								</div>
+							</button>
+							{print.blogPost && (
+								<a
+									href={blogPostHref(print.blogPost)}
+									class="block px-4 pb-4 text-sm text-zinc-400 hover:text-white transition-colors"
+								>
+									Read post →
+								</a>
+							)}
+						</div>
+					))}
+				</div>
+			</section>
+		)}
+
+		<section>
+			<h2 class="text-2xl font-semibold text-white mb-6">Other projects</h2>
+				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="prints-gallery-other">
+				{otherProjects.map((print) => (
+					<div class="print-card group rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden hover:border-zinc-600 hover:bg-zinc-800/50 transition-all duration-200">
 						<button
 							type="button"
-							class="print-card group text-left w-full rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden hover:border-zinc-600 hover:bg-zinc-800/50 transition-all duration-200 focus:outline-none focus:ring 2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
+							class="text-left w-full focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-950 rounded-xl"
 							data-print
 							data-name={print.name}
 							data-description={print.description}
@@ -162,6 +220,8 @@ const placeholderSvg = (name: string) =>
 							data-camera-zoom={print.cameraZoom ?? ''}
 							data-photos={JSON.stringify(print.photos ?? [])}
 							data-videos={JSON.stringify(print.videos ?? [])}
+							data-blog-post={print.blogPost ?? ''}
+							data-blog-post-href={print.blogPost ? blogPostHref(print.blogPost) : ''}
 						>
 							<div class="aspect-[4/3] bg-zinc-800 flex items-center justify-center overflow-hidden relative">
 								<img
@@ -175,39 +235,15 @@ const placeholderSvg = (name: string) =>
 								<h2 class="font-semibold text-white group-hover:text-zinc-100">{print.name}</h2>
 							</div>
 						</button>
-					))}
-				</div>
-			</section>
-		)}
-
-		<section>
-			<h2 class="text-2xl font-semibold text-white mb-6">Other projects</h2>
-			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="prints-gallery-other">
-				{otherProjects.map((print) => (
-					<button
-						type="button"
-						class="print-card group text-left w-full rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden hover:border-zinc-600 hover:bg-zinc-800/50 transition-all duration-200 focus:outline-none focus:ring 2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
-						data-print
-						data-name={print.name}
-						data-description={print.description}
-						data-model-url={print.modelUrl ?? ''}
-						data-card-image={print.image ?? ''}
-						data-camera-zoom={print.cameraZoom ?? ''}
-						data-photos={JSON.stringify(print.photos ?? [])}
-						data-videos={JSON.stringify(print.videos ?? [])}
-					>
-						<div class="aspect-[4/3] bg-zinc-800 flex items-center justify-center overflow-hidden relative">
-							<img
-								src={print.image ?? placeholderSvg(print.name)}
-								alt={print.name}
-								class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-								loading="lazy"
-							/>
-						</div>
-						<div class="p-4">
-							<h2 class="font-semibold text-white group-hover:text-zinc-100">{print.name}</h2>
-						</div>
-					</button>
+						{print.blogPost && (
+							<a
+								href={blogPostHref(print.blogPost)}
+								class="block px-4 pb-4 text-sm text-zinc-400 hover:text-white transition-colors"
+							>
+								Read post →
+							</a>
+						)}
+					</div>
 				))}
 			</div>
 		</section>
@@ -285,8 +321,11 @@ const placeholderSvg = (name: string) =>
 			<!-- Content -->
 			<div class="p-6 overflow-y-auto shrink min-h-0">
 				<h2 id="modal-title" class="text-2xl font-bold text-white mb-3"></h2>
-				<div id="modal-description-wrap" class="mb-6">
+				<div id="modal-description-wrap" class="mb-4">
 					<div id="modal-description" class="text-zinc-400 leading-relaxed text-[15px]"></div>
+				</div>
+				<div id="modal-blog-link-wrap" class="hidden">
+					<a id="modal-blog-link" href="#" class="text-zinc-400 hover:text-white transition-colors text-sm">Read post →</a>
 				</div>
 			</div>
 		</div>
@@ -483,7 +522,10 @@ const placeholderSvg = (name: string) =>
 			albumTotalEl.textContent = slides.length;
 		}
 
-		function openModal(name, description, modelUrl, cardImageUrl, photos, videos, cameraZoom) {
+		const modalBlogLinkWrap = document.getElementById('modal-blog-link-wrap');
+		const modalBlogLink = document.getElementById('modal-blog-link');
+
+		function openModal(name, description, modelUrl, cardImageUrl, photos, videos, cameraZoom, blogPostHref) {
 			disposeViewer();
 			slides = buildSlides(cardImageUrl || null, modelUrl || null, photos || [], videos || [], cameraZoom);
 			currentSlideIndex = 0;
@@ -504,6 +546,13 @@ const placeholderSvg = (name: string) =>
 				p.textContent = 'No description yet.';
 				p.className = 'text-zinc-500 italic';
 				modalDescription.appendChild(p);
+			}
+
+			if (blogPostHref && modalBlogLinkWrap && modalBlogLink) {
+				modalBlogLink.href = blogPostHref;
+				modalBlogLinkWrap.classList.remove('hidden');
+			} else if (modalBlogLinkWrap) {
+				modalBlogLinkWrap.classList.add('hidden');
 			}
 
 			modal.classList.remove('hidden');
@@ -530,7 +579,8 @@ const placeholderSvg = (name: string) =>
 				const videos = JSON.parse(card.getAttribute('data-videos') || '[]');
 				const zoomAttr = card.getAttribute('data-camera-zoom');
 				const cameraZoom = zoomAttr === '' || zoomAttr === null ? undefined : Number(zoomAttr);
-				openModal(name, description, modelUrl, cardImageUrl, photos, videos, cameraZoom);
+				const blogPostHref = card.getAttribute('data-blog-post-href') || null;
+				openModal(name, description, modelUrl, cardImageUrl, photos, videos, cameraZoom, blogPostHref);
 			});
 		});
 
