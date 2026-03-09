@@ -1,0 +1,7 @@
+{
+  "name": "Gecko Skin",
+  "description": "Artificially manufactured gecko skin for robotic grippers. Manufactured by using a custom CNC jig to cut wedges into wax blocks and then casting silicone.",
+  "cameraZoom": 1,
+  "featured": true,
+  "order": 1
+}

@@ -3,6 +3,6 @@
   "description": "A fully automated roll-off roof observatory.",
   "cameraZoom": 1,
   "featured": true,
-  "order": 2,
+  "order": 0,
   "blogPost": "/blog/observatory-build-1"
 }

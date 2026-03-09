@@ -3,5 +3,5 @@
   "description": "An automated blast gate for the dust collector in my dads woodshop. Uses an ESP32 with homekit to automatically open and close dust collection pathways for the various tools in the shop.",
   "cameraZoom": 1,
   "featured": true,
-  "order": 0
+  "order": 2
 }

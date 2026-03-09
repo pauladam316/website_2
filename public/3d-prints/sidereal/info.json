@@ -1,0 +1,7 @@
+{
+  "name": "Sidereal",
+  "description": "An INDI-compatable GUI for controlling the observatory, written entirely in Rust. Includes features for controlling the telescope, roof, camera, heaters and supports planetarim view and satellite tracking.",
+  "cameraZoom": 1,
+  "featured": true,
+  "order": 5
+}

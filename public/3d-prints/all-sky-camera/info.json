@@ -3,5 +3,5 @@
   "description": "Second revision for the housing of an all-sky camera. The camera gets mounted on the roof of an observatory and provides a fisheye view of the sky to check cloud conditions and look for clear sky.",
   "cameraZoom": 1,
   "featured": true,
-  "order": 1
+  "order": 3
 }
