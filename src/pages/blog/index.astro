@@ -1,0 +1,131 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+
+const CATEGORY_LABELS: Record<string, string> = {
+	'observatory-build': 'Observatory Build',
+	'astrophotography-projects': 'Astrophotography Projects',
+};
+
+const allPosts = await getCollection('blog');
+const posts = allPosts
+	.filter((entry) => entry.data.pubDate != null)
+	.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
+---
+
+<Layout title="Blog">
+	<main class="container mx-auto px-4 py-12">
+		<header class="mb-12">
+			<h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Blog</h1>
+			<p class="text-lg text-zinc-400">Articles, tutorials, and notes.</p>
+		</header>
+
+		<!-- Category filter (clickable) -->
+		<div class="flex flex-wrap gap-2 mb-8" id="blog-category-filter" role="tablist" aria-label="Filter by category">
+			<a
+				href="/blog"
+				class="blog-category-tab px-3 py-1.5 rounded-full text-sm font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:border-zinc-600 hover:text-white transition-colors"
+				data-category=""
+				role="tab"
+				aria-selected="true"
+			>
+				All
+			</a>
+			{Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+				<a
+					href={`/blog?category=${encodeURIComponent(value)}`}
+					class="blog-category-tab px-3 py-1.5 rounded-full text-sm font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:border-zinc-600 hover:text-white transition-colors"
+					data-category={value}
+					role="tab"
+					aria-selected="false"
+				>
+					{label}
+				</a>
+			))}
+		</div>
+
+		<div class="max-w-3xl">
+			<div class="space-y-6" id="blog-posts-list">
+				{posts.map((entry) => (
+					<article
+						class="blog-post group rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden hover:border-zinc-600 hover:bg-zinc-800/50 transition-all duration-200"
+						data-category={entry.data.category}
+					>
+						<a href={`/blog/${entry.slug}`} class="block p-6 text-left">
+							<div class="flex flex-wrap items-center gap-2 mb-3">
+								<span class="text-xs font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+									{CATEGORY_LABELS[entry.data.category] ?? entry.data.category}
+								</span>
+								<time
+									class="text-sm text-zinc-500"
+									datetime={entry.data.pubDate.toISOString()}
+								>
+									{entry.data.pubDate.toLocaleDateString('en-US', {
+										year: 'numeric',
+										month: 'long',
+										day: 'numeric',
+									})}
+								</time>
+							</div>
+							<h2 class="text-xl font-semibold text-white group-hover:text-zinc-100 mb-2">
+								{entry.data.title}
+							</h2>
+							<p class="text-zinc-400 leading-relaxed mb-4">
+								{entry.data.description}
+							</p>
+							<span class="inline-flex items-center text-zinc-400 group-hover:text-white font-medium transition-colors">
+								Read Article
+								<svg class="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+								</svg>
+							</span>
+						</a>
+					</article>
+				))}
+			</div>
+		</div>
+	</main>
+
+	<script>
+		(function () {
+			const tabs = document.querySelectorAll('.blog-category-tab');
+			const posts = document.querySelectorAll('.blog-post');
+
+			function getCategoryFromUrl() {
+				const params = new URLSearchParams(window.location.search);
+				return params.get('category') || '';
+			}
+
+			function setActiveTab(activeCategory) {
+				tabs.forEach((tab) => {
+					const tabCategory = tab.getAttribute('data-category') || '';
+					const isActive = tabCategory === activeCategory;
+					tab.setAttribute('aria-selected', String(isActive));
+					tab.classList.toggle('border-zinc-500', isActive);
+					tab.classList.toggle('text-white', isActive);
+					tab.classList.toggle('bg-zinc-800', !isActive);
+					tab.classList.toggle('bg-zinc-700', isActive);
+				});
+			}
+
+			function filterPosts(category) {
+				posts.forEach((post) => {
+					const postCategory = post.getAttribute('data-category') || '';
+					const show = !category || postCategory === category;
+					post.style.display = show ? '' : 'none';
+				});
+			}
+
+			function applyFilter() {
+				const category = getCategoryFromUrl();
+				setActiveTab(category);
+				filterPosts(category);
+			}
+
+			applyFilter();
+
+			// Re-apply when using browser back/forward
+			window.addEventListener('popstate', applyFilter);
+		})();
+	</script>
+</Layout>

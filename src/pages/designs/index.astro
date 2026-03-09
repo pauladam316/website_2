@@ -1,0 +1,18 @@
+---
+// Redirect /designs to /projects (client-side for static build)
+---
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="refresh" content="0;url=/projects" />
+		<link rel="canonical" href="/projects" />
+		<title>Redirecting to Projects…</title>
+	</head>
+	<body>
+		<p>Redirecting to <a href="/projects">Projects</a>…</p>
+		<script is:inline>
+			window.location.replace('/projects');
+		</script>
+	</body>
+</html>

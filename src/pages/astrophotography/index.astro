@@ -1,0 +1,257 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import fs from 'fs';
+import path from 'path';
+
+const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+const GALLERY_DIR = path.join(process.cwd(), 'public', 'astrophotography');
+const MANIFEST_FILE = 'manifest.json';
+
+export interface ImageMeta {
+	title?: string;
+	object?: string;
+	description?: string;
+	date?: string;
+	blogPost?: string;
+	[key: string]: string | undefined;
+}
+
+export interface GalleryImage {
+	src: string;
+	filename: string;
+	meta: ImageMeta;
+}
+
+function formatFilenameAsTitle(filename: string): string {
+	const base = filename.replace(/\.[^.]+$/, '');
+	return base
+		.split(/[-_\s]+/)
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+		.join(' ');
+}
+
+function getGalleryImages(): GalleryImage[] {
+	if (!fs.existsSync(GALLERY_DIR)) return [];
+
+	const files = fs
+		.readdirSync(GALLERY_DIR)
+		.filter((f) => {
+			const ext = path.extname(f).toLowerCase();
+			return IMAGE_EXTS.includes(ext) && f !== MANIFEST_FILE;
+		})
+		.sort();
+
+	let manifest: Record<string, Partial<ImageMeta>> = {};
+	const manifestPath = path.join(GALLERY_DIR, MANIFEST_FILE);
+	if (fs.existsSync(manifestPath)) {
+		try {
+			manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+		} catch {
+			// ignore invalid manifest
+		}
+	}
+
+	return files.map((filename) => {
+		const manifestEntry = manifest[filename] ?? {};
+		const meta: ImageMeta = {
+			title: manifestEntry.title ?? formatFilenameAsTitle(filename),
+			object: manifestEntry.object,
+			description: manifestEntry.description,
+			date: manifestEntry.date,
+			blogPost: manifestEntry.blogPost,
+		};
+		for (const [k, v] of Object.entries(manifestEntry)) {
+			if (k !== 'title' && k !== 'object' && k !== 'description' && k !== 'blogPost' && v !== undefined && typeof v === 'string')
+				meta[k] = v;
+		}
+		return { src: `/astrophotography/${filename}`, filename, meta };
+	});
+}
+
+const images = getGalleryImages().sort((a, b) => {
+	const dateA = a.meta.date ?? '';
+	const dateB = b.meta.date ?? '';
+	if (!dateA) return 1;
+	if (!dateB) return -1;
+	return dateB.localeCompare(dateA);
+});
+---
+
+<Layout title="Astrophotography — adampaul.space">
+	<main class="min-h-screen w-full">
+		<!-- Compact header -->
+		<header class="sticky top-[57px] z-40 flex items-center justify-between gap-4 px-4 py-3 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800/50">
+			<div>
+				<h1 class="text-xl font-bold text-white">Astrophotography</h1>
+				<p class="text-sm text-zinc-400">Click any image for fullscreen and details</p>
+			</div>
+			{images.length > 0 && (
+				<span class="text-sm text-zinc-500 tabular-nums">{images.length} image{images.length === 1 ? '' : 's'}</span>
+			)}
+		</header>
+
+		{images.length === 0 ? (
+			<div class="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
+				<p class="text-zinc-500 mb-2">No images yet.</p>
+				<p class="text-sm text-zinc-600">
+					Drop your photos in <code class="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-400">public/astrophotography/</code> and they’ll show up here.
+				</p>
+				<a href="/astrophotography/README.md" class="mt-4 text-sm text-zinc-400 hover:text-white transition-colors">See README for optional metadata</a>
+			</div>
+		) : (
+			<div
+				class="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-3 px-3 py-4 w-full box-border"
+				style="column-fill: balance;"
+			>
+				{images.map((img) => (
+					<button
+						type="button"
+						class="astro-photo block w-full break-inside-avoid mb-3 rounded-lg overflow-hidden border border-zinc-800/80 hover:border-zinc-600 focus:outline-none focus:ring 2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-950 transition-all duration-200 text-left"
+						data-src={img.src}
+						data-filename={img.filename}
+						data-meta={JSON.stringify(img.meta)}
+						aria-label={img.meta.title ?? img.filename}
+					>
+						<img
+							src={img.src}
+							alt={img.meta.title ?? img.filename}
+							class="w-full h-auto block"
+							loading="lazy"
+							decoding="async"
+						/>
+					</button>
+				))}
+			</div>
+		)}
+	</main>
+
+	<!-- Fullscreen lightbox -->
+	<div
+		id="astro-lightbox"
+		class="fixed inset-0 z-[100] hidden flex-col bg-zinc-950"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Image detail"
+	>
+		<button
+			type="button"
+			id="astro-lightbox-close"
+			class="absolute top-4 right-4 z-20 p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+			aria-label="Close"
+		>
+			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+			</svg>
+		</button>
+
+		<!-- Image area: fills available space -->
+		<div class="flex-1 min-h-0 flex items-center justify-center p-4">
+			<img
+				id="astro-lightbox-img"
+				src=""
+				alt=""
+				class="max-w-full max-h-full w-auto h-auto object-contain"
+			/>
+		</div>
+
+		<!-- Info card below image -->
+		<div
+			id="astro-lightbox-info"
+			class="shrink-0 border-t border-zinc-800 bg-zinc-900/90 backdrop-blur-sm overflow-y-auto max-h-[40vh]"
+		>
+			<div class="container mx-auto px-4 py-4">
+				<h2 id="astro-lightbox-title" class="text-xl font-bold text-white mb-2"></h2>
+				<dl id="astro-lightbox-meta" class="grid gap-2 text-sm">
+					<!-- filled by script -->
+				</dl>
+				<p id="astro-lightbox-blog" class="mt-3 hidden">
+					<a id="astro-lightbox-blog-link" href="#" class="text-zinc-400 hover:text-white transition-colors inline-flex items-center gap-1.5">
+						<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+						Read blog post
+					</a>
+				</p>
+				<p id="astro-lightbox-description" class="mt-3 text-zinc-400 leading-relaxed hidden"></p>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		const lightbox = document.getElementById('astro-lightbox');
+		const lightboxImg = document.getElementById('astro-lightbox-img');
+		const lightboxTitle = document.getElementById('astro-lightbox-title');
+		const lightboxMeta = document.getElementById('astro-lightbox-meta');
+		const lightboxBlog = document.getElementById('astro-lightbox-blog');
+		const lightboxBlogLink = document.getElementById('astro-lightbox-blog-link');
+		const lightboxDescription = document.getElementById('astro-lightbox-description');
+		const closeBtn = document.getElementById('astro-lightbox-close');
+
+		const knownLabels = { title: 'Title', object: 'Object', date: 'Date' };
+
+		function openLightbox(src, filename, meta) {
+			lightboxImg.src = src;
+			lightboxImg.alt = meta.title || filename;
+			lightboxTitle.textContent = meta.title || filename;
+			lightboxTitle.classList.toggle('hidden', !meta.title && !filename);
+
+			// Meta: all keys except title/description/blogPost
+			lightboxMeta.innerHTML = '';
+			const escapeHtml = (s) => {
+				const div = document.createElement('div');
+				div.textContent = s;
+				return div.innerHTML;
+			};
+			for (const [key, value] of Object.entries(meta)) {
+				if (key === 'title' || key === 'description' || key === 'blogPost' || value == null || String(value).trim() === '') continue;
+				const label = knownLabels[key] || key.charAt(0).toUpperCase() + key.slice(1);
+				const row = document.createElement('div');
+				row.className = 'flex gap-2';
+				row.innerHTML = `<span class="text-zinc-500 font-medium shrink-0">${label}:</span><span class="text-zinc-300">${escapeHtml(String(value))}</span>`;
+				lightboxMeta.appendChild(row);
+			}
+
+			if (meta.blogPost && meta.blogPost.trim()) {
+				lightboxBlogLink.href = meta.blogPost.startsWith('/') ? meta.blogPost : `/${meta.blogPost}`;
+				lightboxBlog.classList.remove('hidden');
+			} else {
+				lightboxBlog.classList.add('hidden');
+			}
+
+			if (meta.description && meta.description.trim()) {
+				lightboxDescription.textContent = meta.description;
+				lightboxDescription.classList.remove('hidden');
+			} else {
+				lightboxDescription.classList.add('hidden');
+			}
+
+			lightbox.classList.remove('hidden');
+			lightbox.classList.add('flex');
+			document.body.style.overflow = 'hidden';
+		}
+
+		function closeLightbox() {
+			lightbox.classList.add('hidden');
+			lightbox.classList.remove('flex');
+			document.body.style.overflow = '';
+		}
+
+		document.querySelectorAll('.astro-photo').forEach((btn) => {
+			btn.addEventListener('click', () => {
+				const src = btn.getAttribute('data-src');
+				const filename = btn.getAttribute('data-filename');
+				let meta = {};
+				try {
+					meta = JSON.parse(btn.getAttribute('data-meta') || '{}');
+				} catch {}
+				openLightbox(src, filename, meta);
+			});
+		});
+
+		closeBtn.addEventListener('click', closeLightbox);
+		lightbox.addEventListener('click', (e) => {
+			if (e.target === lightbox) closeLightbox();
+		});
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && lightbox.classList.contains('flex')) closeLightbox();
+		});
+	</script>
+</Layout>

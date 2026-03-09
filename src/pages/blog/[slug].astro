@@ -1,0 +1,23 @@
+---
+import BlogLayout from '../../layouts/BlogLayout.astro';
+import { getCollection, getEntry, render } from 'astro:content';
+
+export async function getStaticPaths() {
+	const posts = await getCollection('blog');
+	return posts.map((entry) => ({ params: { slug: entry.slug } }));
+}
+
+const { slug } = Astro.params;
+const entry = await getEntry('blog', slug!);
+
+if (!entry) {
+	return Astro.redirect('/404');
+}
+
+const { Content } = await render(entry);
+const { title, description, pubDate, category } = entry.data;
+---
+
+<BlogLayout title={title} description={description} pubDate={pubDate} category={category} slug={entry.slug}>
+	<Content />
+</BlogLayout>

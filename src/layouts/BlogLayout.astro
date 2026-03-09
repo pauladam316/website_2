@@ -1,0 +1,75 @@
+---
+import Layout from './Layout.astro';
+
+const CATEGORY_LABELS: Record<string, string> = {
+	'observatory-build': 'Observatory Build',
+	'astrophotography-projects': 'Astrophotography Projects',
+};
+
+interface Props {
+	title: string;
+	description?: string;
+	pubDate?: Date;
+	category?: string;
+	/** Post slug; when set, a &lt;base&gt; tag is added so relative image/video paths in the post resolve to this folder. */
+	slug?: string;
+}
+
+const { title, description, pubDate, category, slug } = Astro.props;
+---
+
+<Layout title={title}>
+	{slug && (
+		<Fragment slot="head">
+			<base href={`/blog/${slug}/`} />
+		</Fragment>
+	)}
+	<article class="container mx-auto px-4 py-12 max-w-3xl">
+		<header class="mb-10">
+			{category && (
+				<span class="inline-block mb-4 text-xs font-medium px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+					{CATEGORY_LABELS[category] ?? category}
+				</span>
+			)}
+			<h1 class="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
+				{title}
+			</h1>
+			{description && (
+				<p class="text-lg text-zinc-400 mb-6 leading-relaxed">
+					{description}
+				</p>
+			)}
+			{pubDate && (
+				<div class="flex items-center gap-4 text-sm text-zinc-500">
+					<time datetime={pubDate.toISOString()}>
+						{pubDate.toLocaleDateString('en-US', {
+							year: 'numeric',
+							month: 'long',
+							day: 'numeric',
+						})}
+					</time>
+					<span class="w-1 h-1 bg-zinc-600 rounded-full"></span>
+					<span>5 min read</span>
+				</div>
+			)}
+			<hr class="mt-8 border-zinc-800" />
+		</header>
+
+		<div class="prose prose-lg dark:prose-invert max-w-none prose-headings:text-white prose-p:text-zinc-300 prose-a:text-zinc-400 prose-a:hover:text-white prose-strong:text-white prose-code:text-zinc-300 prose-code:bg-zinc-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-zinc-900 prose-pre:border prose-pre:border-zinc-800 prose-li:text-zinc-300 prose-blockquote:text-zinc-400 prose-blockquote:border-zinc-700 prose-figure:my-6 prose-figure:mx-auto prose-figcaption:text-sm prose-figcaption:text-zinc-400 prose-figcaption:mt-1 prose-figcaption:text-center prose-figcaption:not-italic prose-img:block prose-img:mx-auto prose-video:block prose-video:mx-auto">
+			<slot />
+		</div>
+
+		<footer class="mt-16 pt-8 border-t border-zinc-800">
+			<a
+				href="/blog"
+				class="inline-flex items-center text-zinc-400 hover:text-white font-medium transition-colors group"
+			>
+				<svg class="w-5 h-5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+				</svg>
+				Back to Blog
+			</a>
+		</footer>
+	</article>
+</Layout>
+

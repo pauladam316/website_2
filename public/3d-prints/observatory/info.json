@@ -1,0 +1,7 @@
+{
+  "name": "Observatory",
+  "description": "A fully automated roll-off roof observatory.",
+  "cameraZoom": 1,
+  "featured": true,
+  "order": 2
+}

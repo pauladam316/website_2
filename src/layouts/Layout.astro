@@ -1,0 +1,101 @@
+---
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="dark">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content="Adam Paul — Blog & Portfolio" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="icon" href="/favicon.ico" sizes="any" />
+		<link rel="shortcut icon" href="/favicon.ico" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+		<slot name="head" />
+	</head>
+	<body class="bg-zinc-950 text-zinc-100 min-h-screen antialiased">
+		<nav class="sticky top-0 z-50 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800">
+			<div class="container mx-auto px-4 py-4">
+				<div class="flex justify-between items-center">
+					<a href="/" class="text-xl font-semibold text-zinc-100 hover:text-white transition-colors">
+						adampaul.space
+					</a>
+					<!-- Desktop nav -->
+					<div class="hidden md:flex items-center gap-8">
+						<a href="/" class="text-zinc-400 hover:text-white transition-colors font-medium">Home</a>
+						<a href="/blog" class="text-zinc-400 hover:text-white transition-colors font-medium">Blog</a>
+						<a href="/astrophotography" class="text-zinc-400 hover:text-white transition-colors font-medium">Astrophotography</a>
+						<a href="/projects" class="text-zinc-400 hover:text-white transition-colors font-medium">Projects</a>
+					</div>
+					<!-- Mobile menu button -->
+					<button
+						type="button"
+						class="md:hidden p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+						aria-label="Toggle menu"
+						aria-expanded="false"
+						aria-controls="mobile-nav-menu"
+						id="mobile-nav-toggle"
+					>
+						<svg class="w-6 h-6 menu-icon-open" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+						</svg>
+						<svg class="w-6 h-6 menu-icon-close hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+				<!-- Mobile nav menu (dropdown) -->
+				<div
+					id="mobile-nav-menu"
+					class="hidden md:hidden mt-4 pb-2 border-t border-zinc-800 pt-4"
+					aria-label="Mobile navigation"
+				>
+					<div class="flex flex-col gap-1">
+						<a href="/" class="py-2.5 px-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-colors font-medium">Home</a>
+						<a href="/blog" class="py-2.5 px-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-colors font-medium">Blog</a>
+						<a href="/astrophotography" class="py-2.5 px-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-colors font-medium">Astrophotography</a>
+						<a href="/projects" class="py-2.5 px-2 text-zinc-400 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-colors font-medium">Projects</a>
+					</div>
+				</div>
+			</div>
+		</nav>
+		<script>
+			(function () {
+				const toggle = document.getElementById('mobile-nav-toggle');
+				const menu = document.getElementById('mobile-nav-menu');
+				const openIcon = toggle?.querySelector('.menu-icon-open');
+				const closeIcon = toggle?.querySelector('.menu-icon-close');
+				if (!toggle || !menu) return;
+
+				toggle.addEventListener('click', () => {
+					const isOpen = !menu.classList.contains('hidden');
+					menu.classList.toggle('hidden', isOpen);
+					toggle.setAttribute('aria-expanded', String(!isOpen));
+					openIcon?.classList.toggle('hidden', !isOpen);
+					closeIcon?.classList.toggle('hidden', isOpen);
+				});
+
+				// Close menu when a link is clicked (navigation)
+				menu.querySelectorAll('a').forEach((link) => {
+					link.addEventListener('click', () => {
+						menu.classList.add('hidden');
+						toggle?.setAttribute('aria-expanded', 'false');
+						openIcon?.classList.remove('hidden');
+						closeIcon?.classList.add('hidden');
+					});
+				});
+			})();
+		</script>
+		<slot />
+		<footer class="border-t border-zinc-800 mt-20">
+			<div class="container mx-auto px-4 py-8">
+				<p class="text-center text-zinc-500 text-sm">&copy; {new Date().getFullYear()} adampaul.space</p>
+			</div>
+		</footer>
+	</body>
+</html>

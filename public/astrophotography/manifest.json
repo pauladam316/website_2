@@ -1,0 +1,185 @@
+{
+    "c2023-a3-tsuchinshanatlas.png": {
+        "title": "Comet C/2023 A3 (Tsuchinshan–ATLAS)",
+        "object": "C/2023 A3",
+        "description": "Comet C/2023 A3 (Tsuchinshan–ATLAS) was discovered in 2023 and reached naked-eye visibility in 2024. It is a long-period comet that passed through the inner solar system.",
+        "date": "2024-10-27"
+    },
+    "horsehead-flame-nebula.png": {
+        "title": "Horsehead and Flame Nebula [B33 / NGC 2024]",
+        "object": "B33",
+        "description": "The Horsehead Nebula is a dark nebula in Orion, silhouetted against the emission nebula IC 434. The Flame Nebula (NGC 2024) is an emission nebula nearby, both part of the Orion molecular cloud complex.",
+        "date": "2024-03-13",
+        "blogPost": "/blog/horsehead-and-flame"
+    },
+    "m101_1.jpg": {
+        "title": "Pinwheel Galaxy [M101]",
+        "object": "M101",
+        "description": "The Pinwheel Galaxy is a face-on spiral in Ursa Major with asymmetric arms and vigorous star formation. It is one of the largest and most detailed spirals visible in amateur telescopes.",
+        "date": "2023-06-05"
+    },
+    "m101_2.jpg": {
+        "title": "Pinwheel Galaxy [M101]",
+        "object": "M101",
+        "description": "The Pinwheel Galaxy is a face-on spiral in Ursa Major with asymmetric arms and vigorous star formation. It is one of the largest and most detailed spirals visible in amateur telescopes.",
+        "date": "2023-06-23"
+    },
+    "m104.png": {
+        "title": "Sombrero Galaxy [M104]",
+        "object": "M104",
+        "description": "The Sombrero Galaxy is an edge-on spiral in Virgo with a bright bulge and a prominent dust lane. Its distinctive shape makes it one of the most photographed galaxies.",
+        "date": "2025-05-23"
+    },
+    "m106.png": {
+        "title": "M106 [NGC 4258]",
+        "object": "M106",
+        "description": "M106 is a spiral galaxy in Canes Venatici with anomalous arms that suggest a supermassive black hole activity. It is one of the largest and brightest nearby galaxies.",
+        "date": "2024-05-20",
+        "blogPost": "/blog/m106"
+    },
+    "m27.png": {
+        "title": "Dumbbell Nebula [M27]",
+        "object": "M27",
+        "description": "The Dumbbell Nebula is a large planetary nebula in Vulpecula and one of the brightest in the sky. Its elongated shape gives it the name and makes it a popular target for imaging.",
+        "date": "2024-07-13"
+    },
+    "m31_1.jpg": {
+        "title": "Andromeda Galaxy [M31]",
+        "object": "M31",
+        "description": "The Andromeda Galaxy is the nearest large spiral galaxy to the Milky Way, about 2.5 million light-years away. It is on a collision course with our galaxy and will merge with it in several billion years.",
+        "date": "2023-07-04"
+    },
+    "m31_2.png": {
+        "title": "Andromeda Galaxy [M31]",
+        "object": "M31",
+        "description": "The Andromeda Galaxy is the nearest large spiral galaxy to the Milky Way, about 2.5 million light-years away. It is on a collision course with our galaxy and will merge with it in several billion years.",
+        "date": "2024-10-25"
+    },
+    "m33-triangulum-galaxy.jpg": {
+        "title": "Triangulum Galaxy [M33]",
+        "object": "M33",
+        "description": "M33 is a face-on spiral galaxy in Triangulum and the third-largest member of our Local Group. It lacks a prominent central bulge and is a popular target for astrophotography.",
+        "date": "2023-10-16"
+    },
+    "m45.jpg": {
+        "title": "Pleiades [M45]",
+        "object": "M45",
+        "description": "The Pleiades is an open star cluster in Taurus, famous for its blue reflection nebulosity. It is among the nearest star clusters and has been known since antiquity.",
+        "date": "2024-02-09"
+    },
+    "m45_2.jpg": {
+        "title": "Pleiades [M45]",
+        "object": "M45",
+        "description": "The Pleiades is an open star cluster in Taurus, famous for its blue reflection nebulosity. It is among the nearest star clusters and has been known since antiquity.",
+        "date": "2025-12-25"
+    },
+    "m57-the-ring-nebula.jpg": {
+        "title": "Ring Nebula [M57]",
+        "object": "M57",
+        "description": "The Ring Nebula is a planetary nebula in Lyra, the glowing shell of a dying sun-like star. It is one of the best-known planetary nebulae and shows a distinct ring shape in small telescopes.",
+        "date": "2023-08-29"
+    },
+    "m81-bodes-galaxy-1.jpg": {
+        "title": "Bode's Galaxy and Cigar Galaxy [M81 & M82]",
+        "object": "M81 & M82",
+        "description": "Bode's Galaxy (M81) is a grand-design spiral in Ursa Major and one of the brightest galaxies in the night sky. The Cigar Galaxy (M82) is the starburst companion often imaged with it; together they form a striking pair.",
+        "date": "2022-02-01",
+        "blogPost": "/blog/m81-m82"
+    },
+    "m81-bodes-galaxy-2.png": {
+        "title": "Bode's Galaxy [M81]",
+        "object": "M81",
+        "description": "Bode's Galaxy is a grand-design spiral in Ursa Major and one of the brightest galaxies in the night sky. It forms a striking pair with the irregular galaxy M82.",
+        "date": "2024-02-21",
+        "blogPost": "/blog/m81-m82"
+    },
+    "m81-bodes-galaxy.png": {
+        "title": "Bode's Galaxy [M81]",
+        "object": "M81",
+        "description": "Bode's Galaxy is a grand-design spiral in Ursa Major and one of the brightest galaxies in the night sky. It forms a striking pair with the irregular galaxy M82.",
+        "date": "2024-02-21",
+        "blogPost": "/blog/m81-m82"
+    },
+    "m82-the-cigar-galaxy.png": {
+        "title": "Cigar Galaxy [M82]",
+        "object": "M82",
+        "description": "The Cigar Galaxy is a starburst galaxy in Ursa Major, undergoing intense star formation. It is often imaged together with M81 and shows prominent dust lanes.",
+        "date": "2024-02-21",
+        "blogPost": "/blog/m81-m82"
+    },
+    "mars-jupiter-saturn.jpg": {
+        "title": "Mars, Jupiter and Saturn",
+        "object": "",
+        "description": "A planetary conjunction or grouping of Mars, Jupiter, and Saturn in the same frame. Such alignments occur when the planets appear close together in the sky from our viewpoint on Earth.",
+        "date": "2022-04-01"
+    },
+    "moon_crater_1.jpg": {
+        "title": "Moon — crater detail",
+        "object": "Moon",
+        "description": "Close-up of a lunar crater showing the rugged terrain of the Moon's surface. Craters are formed by asteroid and comet impacts over billions of years.",
+        "date": "2022-04-01"
+    },
+    "moon_crater_2.jpg": {
+        "title": "Moon — crater detail",
+        "object": "Moon",
+        "description": "Close-up of a lunar crater showing the rugged terrain of the Moon's surface. Craters are formed by asteroid and comet impacts over billions of years.",
+        "date": "2022-04-01"
+    },
+    "moon_crater_3.jpg": {
+        "title": "Moon — crater detail",
+        "object": "Moon",
+        "description": "Close-up of a lunar crater showing the rugged terrain of the Moon's surface. Craters are formed by asteroid and comet impacts over billions of years.",
+        "date": "2022-04-01"
+    },
+    "moon_crater_4.jpg": {
+        "title": "Moon — crater detail",
+        "object": "Moon",
+        "description": "Close-up of a lunar crater showing the rugged terrain of the Moon's surface. Craters are formed by asteroid and comet impacts over billions of years.",
+        "date": "2022-04-01"
+    },
+    "moon_crater_5.jpg": {
+        "title": "Moon — crater detail",
+        "object": "Moon",
+        "description": "Close-up of a lunar crater showing the rugged terrain of the Moon's surface. Craters are formed by asteroid and comet impacts over billions of years.",
+        "date": "2022-04-01"
+    },
+    "moon_crater_6.jpg": {
+        "title": "Moon — crater detail",
+        "object": "Moon",
+        "description": "Close-up of a lunar crater showing the rugged terrain of the Moon's surface. Craters are formed by asteroid and comet impacts over billions of years.",
+        "date": "2022-04-01"
+    },
+    "ngc-7380-the-wizard-nebula.jpg": {
+        "title": "Wizard Nebula [NGC 7380]",
+        "object": "NGC 7380",
+        "description": "The Wizard Nebula is an open cluster embedded in an emission nebula in Cepheus. The gas and dust form shapes that suggest a wizard or sorcerer in long-exposure images.",
+        "date": "2023-07-26"
+    },
+    "orion_1.jpg": {
+        "title": "Orion Nebula [M42]",
+        "object": "M42",
+        "description": "The Orion Nebula is a diffuse nebula in Orion and one of the brightest nebulae in the sky, visible to the naked eye. It is a stellar nursery where new stars are forming and is about 1,344 light-years away.",
+        "date": "2021-11-01",
+        "blogPost": "/blog/m42"
+    },
+    "orion_2.jpg": {
+        "title": "Orion Nebula [M42]",
+        "object": "M42",
+        "description": "The Orion Nebula is a diffuse nebula in Orion and one of the brightest nebulae in the sky, visible to the naked eye. It is a stellar nursery where new stars are forming and is about 1,344 light-years away.",
+        "date": "2024-02-09",
+        "blogPost": "/blog/m42"
+    },
+    "rosette-nebula.png": {
+        "title": "Rosette Nebula [NGC 2237]",
+        "object": "NGC 2237",
+        "description": "The Rosette Nebula is a large circular emission nebula in Monoceros, with an open cluster at its center. Its flower-like shape makes it a favorite target for astrophotographers.",
+        "date": "2024-03-15",
+        "blogPost": "/blog/rosette"
+    },
+    "western-veil-nebula.jpg": {
+        "title": "Western Veil Nebula [NGC 6960]",
+        "object": "NGC 6960",
+        "description": "The Veil Nebula is a large supernova remnant in Cygnus, the expanding shell of a star that exploded thousands of years ago. The western section appears as delicate filaments in narrowband or processed images.",
+        "date": "2023-09-16"
+    }
+}

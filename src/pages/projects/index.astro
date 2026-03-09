@@ -1,0 +1,586 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import fs from 'fs';
+import path from 'path';
+
+interface Print {
+	id: string;
+	name: string;
+	description: string;
+	image: string | null;
+	modelUrl: string | null;
+	photos: string[];
+	videos: string[];
+	/** Optional zoom multiplier for 3D viewer. > 1 = zoom out, < 1 = zoom in. Default auto-fits model in frame. */
+	cameraZoom?: number;
+	/** If true, show in "Featured projects" section. */
+	featured?: boolean;
+	/** Sort order within section (featured or other). Lower = earlier. Falls back to name sort when equal/missing. */
+	order?: number;
+}
+
+const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+const VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv'];
+const CARD_FILE = 'card.png';
+const MODEL_FILE = 'model.obj';
+const CARD_MAX_WIDTH = 800;
+const ALBUM_MAX_WIDTH = 1200;
+const OPT_DIR = path.join(process.cwd(), 'public', '3d-prints-opt');
+
+function formatFolderName(folder: string): string {
+	return folder
+		.split(/[-_]/)
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+		.join(' ');
+}
+
+async function getOptimizedImageUrl(
+	sourcePath: string,
+	folder: string,
+	filename: string,
+	maxWidth: number
+): Promise<string> {
+	try {
+		const sharp = (await import('sharp')).default;
+		const outDir = path.join(OPT_DIR, folder);
+		const outPath = path.join(outDir, filename);
+		fs.mkdirSync(outDir, { recursive: true });
+
+		const stat = fs.statSync(sourcePath);
+		if (fs.existsSync(outPath)) {
+			const outStat = fs.statSync(outPath);
+			if (outStat.mtimeMs >= stat.mtimeMs) {
+				return `/3d-prints-opt/${folder}/${filename}`;
+			}
+		}
+
+		await sharp(sourcePath)
+			.resize(maxWidth, null, { withoutEnlargement: true })
+			.toFile(outPath);
+		return `/3d-prints-opt/${folder}/${filename}`;
+	} catch {
+		return `/3d-prints/${folder}/${filename}`;
+	}
+}
+
+async function getPrintsFromFolders(): Promise<Print[]> {
+	const baseDir = path.join(process.cwd(), 'public', '3d-prints');
+	if (!fs.existsSync(baseDir)) return [];
+
+	const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+	const prints: Print[] = [];
+
+	for (const entry of entries) {
+		if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+
+		const folder = entry.name;
+		const dirPath = path.join(baseDir, folder);
+		const files = fs.readdirSync(dirPath);
+
+		const hasModel = files.includes(MODEL_FILE);
+		const hasCard = files.includes(CARD_FILE);
+		const albumImages = files
+			.filter((f) => {
+				const ext = path.extname(f).toLowerCase();
+				return IMAGE_EXTS.includes(ext) && f !== CARD_FILE;
+			})
+			.sort();
+		const albumVideos = files
+			.filter((f) => VIDEO_EXTS.includes(path.extname(f).toLowerCase()))
+			.sort();
+
+		let name = formatFolderName(folder);
+		let description = '';
+
+		let cameraZoom: number | undefined;
+		let featured: boolean | undefined;
+		let order: number | undefined;
+		const infoPath = path.join(dirPath, 'info.json');
+		if (fs.existsSync(infoPath)) {
+			try {
+				const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
+				if (info.name) name = info.name;
+				if (info.description) description = info.description;
+				if (typeof info.cameraZoom === 'number') cameraZoom = info.cameraZoom;
+				if (typeof info.featured === 'boolean') featured = info.featured;
+				if (typeof info.order === 'number') order = info.order;
+			} catch {
+				// ignore invalid info.json
+			}
+		}
+
+		const baseUrl = `/3d-prints/${folder}`;
+		let imageUrl: string | null = null;
+		if (hasCard) {
+			const cardPath = path.join(dirPath, CARD_FILE);
+			imageUrl = await getOptimizedImageUrl(cardPath, folder, CARD_FILE, CARD_MAX_WIDTH);
+		}
+		const photoUrls = await Promise.all(
+			albumImages.map((f) =>
+				getOptimizedImageUrl(path.join(dirPath, f), folder, f, ALBUM_MAX_WIDTH)
+			)
+		);
+
+		const videoUrls = albumVideos.map((f) => `${baseUrl}/${f}`);
+
+		prints.push({
+			id: folder,
+			name,
+			description,
+			image: imageUrl,
+			modelUrl: hasModel ? `${baseUrl}/${MODEL_FILE}` : null,
+			photos: photoUrls,
+			videos: videoUrls,
+			cameraZoom,
+			featured,
+			order,
+		});
+	}
+
+	return prints;
+}
+
+function sortByOrderThenName(a: Print, b: Print): number {
+	const orderA = a.order ?? Infinity;
+	const orderB = b.order ?? Infinity;
+	if (orderA !== orderB) return orderA - orderB;
+	return a.name.localeCompare(b.name);
+}
+
+const allPrints: Print[] = await getPrintsFromFolders();
+const featuredProjects = allPrints.filter((p) => p.featured === true).sort(sortByOrderThenName);
+const otherProjects = allPrints.filter((p) => p.featured !== true).sort(sortByOrderThenName);
+
+const placeholderSvg = (name: string) =>
+	`data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" fill="none"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:%233f3f46"/><stop offset="100%" style="stop-color:%2318181b"/></linearGradient></defs><rect width="400" height="300" fill="url(%23g)"/><path d="M120 150 L200 80 L280 150 L200 220 Z" stroke="%2371717a" stroke-width="2" fill="none"/><path d="M200 80 L200 150 M200 150 L120 150 M200 150 L280 150 M200 150 L200 220" stroke="%2352525b" stroke-width="1" stroke-dasharray="4 2"/><text x="200" y="260" text-anchor="middle" fill="%2371717a" font-family="system-ui" font-size="14">${name}</text></svg>`)}`;
+---
+
+<Layout title="Projects — adampaul.space">
+	<main class="container mx-auto px-4 py-12">
+		<header class="mb-12">
+			<h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Projects</h1>
+			<p class="text-lg text-zinc-400">Various hardware I've designed over the years. Click a card for details.</p>
+		</header>
+
+		{featuredProjects.length > 0 && (
+			<section class="mb-16">
+				<h2 class="text-2xl font-semibold text-white mb-6">Featured projects</h2>
+				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="prints-gallery-featured">
+					{featuredProjects.map((print) => (
+						<button
+							type="button"
+							class="print-card group text-left w-full rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden hover:border-zinc-600 hover:bg-zinc-800/50 transition-all duration-200 focus:outline-none focus:ring 2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
+							data-print
+							data-name={print.name}
+							data-description={print.description}
+							data-model-url={print.modelUrl ?? ''}
+							data-card-image={print.image ?? ''}
+							data-camera-zoom={print.cameraZoom ?? ''}
+							data-photos={JSON.stringify(print.photos ?? [])}
+							data-videos={JSON.stringify(print.videos ?? [])}
+						>
+							<div class="aspect-[4/3] bg-zinc-800 flex items-center justify-center overflow-hidden relative">
+								<img
+									src={print.image ?? placeholderSvg(print.name)}
+									alt={print.name}
+									class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+									loading="lazy"
+								/>
+							</div>
+							<div class="p-4">
+								<h2 class="font-semibold text-white group-hover:text-zinc-100">{print.name}</h2>
+							</div>
+						</button>
+					))}
+				</div>
+			</section>
+		)}
+
+		<section>
+			<h2 class="text-2xl font-semibold text-white mb-6">Other projects</h2>
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="prints-gallery-other">
+				{otherProjects.map((print) => (
+					<button
+						type="button"
+						class="print-card group text-left w-full rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden hover:border-zinc-600 hover:bg-zinc-800/50 transition-all duration-200 focus:outline-none focus:ring 2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
+						data-print
+						data-name={print.name}
+						data-description={print.description}
+						data-model-url={print.modelUrl ?? ''}
+						data-card-image={print.image ?? ''}
+						data-camera-zoom={print.cameraZoom ?? ''}
+						data-photos={JSON.stringify(print.photos ?? [])}
+						data-videos={JSON.stringify(print.videos ?? [])}
+					>
+						<div class="aspect-[4/3] bg-zinc-800 flex items-center justify-center overflow-hidden relative">
+							<img
+								src={print.image ?? placeholderSvg(print.name)}
+								alt={print.name}
+								class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+								loading="lazy"
+							/>
+						</div>
+						<div class="p-4">
+							<h2 class="font-semibold text-white group-hover:text-zinc-100">{print.name}</h2>
+						</div>
+					</button>
+				))}
+			</div>
+		</section>
+	</main>
+
+	<!-- Modal -->
+	<div
+		id="print-modal"
+		class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+		aria-modal="true"
+		aria-labelledby="modal-title"
+		role="dialog"
+	>
+		<div class="relative w-full max-w-2xl md:max-w-5xl max-h-[90vh] overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl flex flex-col">
+			<button
+				type="button"
+				id="modal-close"
+				class="absolute top-3 right-3 z-20 p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+				aria-label="Close"
+			>
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+				</svg>
+			</button>
+
+			<!-- Album viewer: 3D or image with prev/next -->
+			<div class="relative w-full aspect-video bg-zinc-950 shrink-0">
+				<!-- Slide: 3D viewer -->
+				<div id="album-viewer-container" class="absolute inset-0 z-0 hidden">
+					<div id="viewer-placeholder" class="absolute inset-0 flex items-center justify-center text-zinc-500 text-sm">
+						Loading 3D…
+					</div>
+					<canvas id="viewer-canvas" class="absolute inset-0 w-full h-full hidden"></canvas>
+				</div>
+				<!-- Slide: image -->
+				<div id="album-image-container" class="absolute inset-0 z-0 hidden items-center justify-center bg-zinc-950 p-2">
+					<img id="album-image" src="" alt="" class="max-w-full max-h-full object-contain hidden" />
+				</div>
+				<!-- Slide: video -->
+				<div id="album-video-container" class="absolute inset-0 z-0 hidden items-center justify-center bg-zinc-950 p-2">
+					<video id="album-video" class="max-w-full max-h-full object-contain hidden" controls playsinline preload="metadata"></video>
+				</div>
+				<!-- Empty state when no slides -->
+				<div id="album-empty" class="absolute inset-0 z-0 flex items-center justify-center text-zinc-500 text-sm hidden">
+					No media
+				</div>
+
+				<!-- Prev/Next arrows (only show when more than one slide) -->
+				<button
+					type="button"
+					id="album-prev"
+					class="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-zinc-800/90 hover:bg-zinc-700 text-white transition-colors hidden"
+					aria-label="Previous"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+					</svg>
+				</button>
+				<button
+					type="button"
+					id="album-next"
+					class="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-zinc-800/90 hover:bg-zinc-700 text-white transition-colors hidden"
+					aria-label="Next"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+					</svg>
+				</button>
+				<!-- Slide counter -->
+				<div id="album-counter" class="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-zinc-800/90 text-zinc-300 text-sm hidden">
+					<span id="album-current">1</span> / <span id="album-total">1</span>
+				</div>
+			</div>
+
+			<!-- Content -->
+			<div class="p-6 overflow-y-auto shrink min-h-0">
+				<h2 id="modal-title" class="text-2xl font-bold text-white mb-3"></h2>
+				<div id="modal-description-wrap" class="mb-6">
+					<div id="modal-description" class="text-zinc-400 leading-relaxed text-[15px]"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script is:inline type="module">
+		import * as THREE from 'https://esm.sh/three@0.160.0';
+		import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+		import { OBJLoader } from 'https://esm.sh/three@0.160.0/examples/jsm/loaders/OBJLoader.js';
+
+		// --- Modal: interactive 3D viewer (OBJ only) ---
+		let scene, camera, renderer, controls, viewerAnimationId = null;
+
+		function initModalViewer(container, modelUrl, cameraZoom) {
+			if (!modelUrl) return () => {};
+
+			const canvas = document.getElementById('viewer-canvas');
+			const placeholder = document.getElementById('viewer-placeholder');
+			placeholder.classList.remove('hidden');
+			placeholder.textContent = 'Loading 3D…';
+			canvas.classList.add('hidden');
+
+			const width = container.clientWidth;
+			const height = container.clientHeight;
+
+			scene = new THREE.Scene();
+			scene.background = new THREE.Color(0x18181b);
+
+			camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+			camera.position.set(0, 0, 2);
+			camera.up.set(0, 0, 1);
+
+			renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+			renderer.setSize(width, height);
+			renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+			renderer.outputColorSpace = THREE.SRGBColorSpace;
+			renderer.toneMapping = THREE.ACESFilmicToneMapping;
+			renderer.toneMappingExposure = 1;
+
+			scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+			const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+			dir.position.set(2, 2, 2);
+			scene.add(dir);
+
+			controls = new OrbitControls(camera, canvas);
+			controls.enableDamping = true;
+			controls.dampingFactor = 0.05;
+			controls.minDistance = 0.5;
+			controls.maxDistance = 1000;
+
+			function onLoaded(object) {
+				scene.add(object);
+				const box = new THREE.Box3().setFromObject(object);
+				const center = box.getCenter(new THREE.Vector3());
+				const sphere = new THREE.Sphere();
+				box.getBoundingSphere(sphere);
+				const radius = Math.max(sphere.radius, 0.001);
+				const fovRad = (camera.fov * Math.PI) / 180 / 2;
+				const fitDistance = radius / Math.tan(fovRad);
+				const padding = 1;
+				const zoomMult = typeof cameraZoom === 'number' ? cameraZoom : 1;
+				const distance = fitDistance * padding * zoomMult;
+				controls.maxDistance = Math.max(1000, distance * 3);
+				const direction = new THREE.Vector3(1, 1, 1).normalize();
+				camera.position.copy(center).add(direction.multiplyScalar(distance));
+				controls.target.copy(center);
+				controls.update();
+				canvas.classList.remove('hidden');
+				placeholder.classList.add('hidden');
+			}
+			function onError() {
+				placeholder.textContent = 'Could not load model';
+				placeholder.classList.remove('hidden');
+			}
+
+			const objLoader = new OBJLoader();
+			objLoader.load(modelUrl, onLoaded, undefined, onError);
+
+			function animate() {
+				viewerAnimationId = requestAnimationFrame(animate);
+				controls.update();
+				renderer.render(scene, camera);
+			}
+			animate();
+
+			return function dispose() {
+				if (viewerAnimationId) cancelAnimationFrame(viewerAnimationId);
+				viewerAnimationId = null;
+				controls?.dispose();
+				renderer?.dispose();
+				scene?.traverse((obj) => {
+					if (obj.geometry) obj.geometry.dispose();
+					if (obj.material) {
+						if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+						else obj.material.dispose();
+					}
+				});
+				placeholder.classList.remove('hidden');
+				placeholder.textContent = 'Loading 3D…';
+				canvas.classList.add('hidden');
+			};
+		}
+
+		// --- Modal album state ---
+		const modal = document.getElementById('print-modal');
+		const modalTitle = document.getElementById('modal-title');
+		const modalDescription = document.getElementById('modal-description');
+		const albumViewerContainer = document.getElementById('album-viewer-container');
+		const albumImageContainer = document.getElementById('album-image-container');
+		const albumImage = document.getElementById('album-image');
+		const albumVideoContainer = document.getElementById('album-video-container');
+		const albumVideo = document.getElementById('album-video');
+		const albumEmpty = document.getElementById('album-empty');
+		const albumPrev = document.getElementById('album-prev');
+		const albumNext = document.getElementById('album-next');
+		const albumCounter = document.getElementById('album-counter');
+		const albumCurrentEl = document.getElementById('album-current');
+		const albumTotalEl = document.getElementById('album-total');
+
+		let slides = [];
+		let currentSlideIndex = 0;
+		let disposeViewer = () => {};
+
+		function buildSlides(cardImageUrl, modelUrl, photos, videos, cameraZoom) {
+			const list = [];
+			if (cardImageUrl) list.push({ type: 'image', url: cardImageUrl });
+			if (modelUrl) list.push({ type: 'model', url: modelUrl, cameraZoom });
+			(photos || []).forEach((url) => list.push({ type: 'image', url }));
+			(videos || []).forEach((url) => list.push({ type: 'video', url }));
+			return list;
+		}
+
+		function showSlide(index) {
+			currentSlideIndex = index;
+			const slide = slides[index];
+
+			// Pause video when leaving video slide
+			albumVideo.pause();
+			albumVideo.removeAttribute('src');
+			albumVideo.load();
+
+			albumViewerContainer.classList.add('hidden');
+			albumImageContainer.classList.add('hidden');
+			albumImageContainer.classList.remove('flex');
+			albumImage.classList.add('hidden');
+			albumVideoContainer.classList.add('hidden');
+			albumVideoContainer.classList.remove('flex');
+			albumVideo.classList.add('hidden');
+			albumEmpty.classList.add('hidden');
+
+			if (!slide) {
+				albumEmpty.classList.remove('hidden');
+				albumEmpty.classList.add('flex');
+				albumPrev.classList.add('hidden');
+				albumNext.classList.add('hidden');
+				albumCounter.classList.add('hidden');
+				return;
+			}
+
+			if (slide.type === 'model') {
+				disposeViewer();
+				albumViewerContainer.classList.remove('hidden');
+				albumImageContainer.classList.add('hidden');
+				albumVideoContainer.classList.add('hidden');
+				albumImage.classList.add('hidden');
+				albumVideo.classList.add('hidden');
+				disposeViewer = initModalViewer(albumViewerContainer, slide.url, slide.cameraZoom);
+			} else if (slide.type === 'video') {
+				disposeViewer();
+				albumViewerContainer.classList.add('hidden');
+				albumImageContainer.classList.add('hidden');
+				albumImage.classList.add('hidden');
+				albumVideoContainer.classList.remove('hidden');
+				albumVideoContainer.classList.add('flex');
+				albumVideo.src = slide.url;
+				albumVideo.classList.remove('hidden');
+				albumVideo.play().catch(() => {});
+			} else {
+				disposeViewer();
+				albumViewerContainer.classList.add('hidden');
+				albumVideoContainer.classList.add('hidden');
+				albumVideo.classList.add('hidden');
+				albumImageContainer.classList.remove('hidden');
+				albumImageContainer.classList.add('flex');
+				albumImage.src = slide.url;
+				albumImage.alt = 'Photo';
+				albumImage.classList.remove('hidden');
+			}
+
+			albumPrev.classList.toggle('hidden', slides.length <= 1);
+			albumNext.classList.toggle('hidden', slides.length <= 1);
+			albumCounter.classList.toggle('hidden', slides.length <= 1);
+			albumCurrentEl.textContent = index + 1;
+			albumTotalEl.textContent = slides.length;
+		}
+
+		function openModal(name, description, modelUrl, cardImageUrl, photos, videos, cameraZoom) {
+			disposeViewer();
+			slides = buildSlides(cardImageUrl || null, modelUrl || null, photos || [], videos || [], cameraZoom);
+			currentSlideIndex = 0;
+
+			modalTitle.textContent = name;
+			modalDescription.innerHTML = '';
+			if (description && description.trim()) {
+				description.trim().split(/\n\n+/).forEach((para) => {
+					const p = document.createElement('p');
+					p.textContent = para.trim();
+					if (para.trim()) {
+						p.className = 'mb-3 last:mb-0';
+						modalDescription.appendChild(p);
+					}
+				});
+			} else {
+				const p = document.createElement('p');
+				p.textContent = 'No description yet.';
+				p.className = 'text-zinc-500 italic';
+				modalDescription.appendChild(p);
+			}
+
+			modal.classList.remove('hidden');
+			modal.classList.add('flex');
+			document.body.style.overflow = 'hidden';
+
+			requestAnimationFrame(() => showSlide(0));
+		}
+
+		function closeModal() {
+			modal.classList.add('hidden');
+			modal.classList.remove('flex');
+			document.body.style.overflow = '';
+			disposeViewer();
+		}
+
+		document.querySelectorAll('[data-print]').forEach((card) => {
+			card.addEventListener('click', () => {
+				const name = card.getAttribute('data-name');
+				const description = card.getAttribute('data-description');
+				const modelUrl = card.getAttribute('data-model-url') || null;
+				const cardImageUrl = card.getAttribute('data-card-image') || null;
+				const photos = JSON.parse(card.getAttribute('data-photos') || '[]');
+				const videos = JSON.parse(card.getAttribute('data-videos') || '[]');
+				const zoomAttr = card.getAttribute('data-camera-zoom');
+				const cameraZoom = zoomAttr === '' || zoomAttr === null ? undefined : Number(zoomAttr);
+				openModal(name, description, modelUrl, cardImageUrl, photos, videos, cameraZoom);
+			});
+		});
+
+		document.getElementById('modal-close').addEventListener('click', closeModal);
+		modal.addEventListener('click', (e) => {
+			if (e.target === modal) closeModal();
+		});
+
+		// Use delegation on the viewer area so prev/next work even if something blocks the buttons
+		const albumViewerArea = document.getElementById('album-viewer-container')?.parentElement;
+		if (albumViewerArea) albumViewerArea.addEventListener('click', (e) => {
+			if (e.target.closest('#album-next')) {
+				e.preventDefault();
+				const next = currentSlideIndex >= slides.length - 1 ? 0 : currentSlideIndex + 1;
+				showSlide(next);
+			} else if (e.target.closest('#album-prev')) {
+				e.preventDefault();
+				const prev = currentSlideIndex <= 0 ? slides.length - 1 : currentSlideIndex - 1;
+				showSlide(prev);
+			}
+		});
+
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape') closeModal();
+			if (modal.classList.contains('flex')) {
+				if (e.key === 'ArrowLeft') {
+					const prev = currentSlideIndex <= 0 ? slides.length - 1 : currentSlideIndex - 1;
+					showSlide(prev);
+				}
+				if (e.key === 'ArrowRight') {
+					const next = currentSlideIndex >= slides.length - 1 ? 0 : currentSlideIndex + 1;
+					showSlide(next);
+				}
+			}
+		});
+	</script>
+</Layout>
