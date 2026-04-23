@@ -1,0 +1,504 @@
+---
+import Layout from '../layouts/Layout.astro';
+const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+---
+
+<Layout title="girlfriend simulator — adampaul.space">
+	<main class="gfsim-page container mx-auto px-4 py-10 max-w-4xl flex flex-col items-center min-h-[calc(100vh-12rem)]">
+		<header class="text-center mb-6">
+			<h1 class="text-2xl md:text-3xl font-semibold text-zinc-100 tracking-tight mb-2">girlfriend simulator</h1>
+			<p class="text-zinc-400 text-base">find your man, don’t get distracted</p>
+			<p class="text-zinc-500 text-sm mt-3 max-w-md mx-auto">
+				<kbd class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-xs">arrows</kbd> to move, <kbd class="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-xs">R</kbd> to restart
+			</p>
+		</header>
+		<div class="relative rounded-lg overflow-hidden border border-zinc-800 shadow-2xl max-w-full">
+			<canvas
+				id="gfsim-canvas"
+				width="3200"
+				height="3200"
+				class="block bg-black max-w-full h-auto w-full"
+				role="img"
+				aria-label="Maze: reach the man, avoid gorle 1 and the poodell"
+			></canvas>
+		</div>
+		<p
+			id="gfsim-status"
+			class="mt-4 text-sm text-amber-400/90 min-h-[1.25em] text-center font-medium"
+			aria-live="polite"
+		></p>
+		<a
+			href={base}
+			class="mt-6 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+		>
+			Back home
+		</a>
+	</main>
+
+	<script is:inline>
+		(function () {
+			const MAZE_W = 25;
+			const MAZE_H = 25;
+			const CELL = 128;
+			const CANVAS_W = MAZE_W * CELL;
+			const CANVAS_H = MAZE_H * CELL;
+			const MOVE_SPEED = 120 * (CELL / 32);
+			const PLAYER_R = CELL * 0.12;
+			const LIGHT_R = CELL * 4.4;
+			const WIN_DIST = CELL * 0.42;
+			const PET_R = CELL * 0.11;
+			const PET_SPEED = 95 * 0.8 * (CELL / 32);
+			const TOUCH_R = PLAYER_R + PET_R + 2;
+
+			function shuffle(a) {
+				for (let i = a.length - 1; i > 0; i--) {
+					const j = (Math.random() * (i + 1)) | 0;
+					[a[i], a[j]] = [a[j], a[i]];
+				}
+				return a;
+			}
+
+			function generateMaze(w, h) {
+				const g = Array.from({ length: h }, () => Array(w).fill(1));
+				function walk(cx, cy) {
+					g[cy][cx] = 0;
+					const order = shuffle([
+						[0, -1],
+						[0, 1],
+						[-1, 0],
+						[1, 0],
+					]);
+					for (const [dx, dy] of order) {
+						const nx = cx + dx * 2;
+						const ny = cy + dy * 2;
+						if (ny < 0 || ny >= h || nx < 0 || nx >= w) continue;
+						if (g[ny][nx] === 0) continue;
+						g[cy + dy][cx + dx] = 0;
+						walk(nx, ny);
+					}
+				}
+				walk(1, 1);
+				return g;
+			}
+
+			function walkableNeighbours(g, w, h, x, y) {
+				const o = [];
+				[
+					[0, 1],
+					[0, -1],
+					[1, 0],
+					[-1, 0],
+				].forEach(([dx, dy]) => {
+					const nx = x + dx;
+					const ny = y + dy;
+					if (ny >= 0 && ny < h && nx >= 0 && nx < w && g[ny][nx] === 0) o.push([nx, ny]);
+				});
+				return o;
+			}
+
+			function bfsFarthest(g, w, h, sx, sy) {
+				const key = (x, y) => y * w + x;
+				const dist = new Map();
+				const q = [[sx, sy]];
+				dist.set(key(sx, sy), 0);
+				let far = [sx, sy];
+				let maxD = 0;
+				for (let qi = 0; qi < q.length; qi++) {
+					const [x, y] = q[qi];
+					const d = dist.get(key(x, y));
+					if (d > maxD) {
+						maxD = d;
+						far = [x, y];
+					}
+					for (const [nx, ny] of walkableNeighbours(g, w, h, x, y)) {
+						const k = key(nx, ny);
+						if (dist.has(k)) continue;
+						dist.set(k, d + 1);
+						q.push([nx, ny]);
+					}
+				}
+				return { cell: far, dist: maxD };
+			}
+
+			function findGoal(g, w, h) {
+				const gx = (w - 1) >> 1;
+				const gy = (h - 1) >> 1;
+				if (g[gy][gx] === 0) return [gx, gy];
+				let best = [1, 1];
+				let bestD = Infinity;
+				for (let y = 0; y < h; y++) {
+					for (let x = 0; x < w; x++) {
+						if (g[y][x] !== 0) continue;
+						const d = (x - gx) * (x - gx) + (y - gy) * (y - gy);
+						if (d < bestD) {
+							bestD = d;
+							best = [x, y];
+						}
+					}
+				}
+				return best;
+			}
+
+			function cellCenter(cx, cy) {
+				return [cx * CELL + CELL * 0.5, cy * CELL + CELL * 0.5];
+			}
+
+			function circleRectOverlap(pcx, pcy, r, rx, ry, rw, rh) {
+				const nx = Math.max(rx, Math.min(pcx, rx + rw));
+				const ny = Math.max(ry, Math.min(pcy, ry + rh));
+				const ddx = pcx - nx;
+				const ddy = pcy - ny;
+				return ddx * ddx + ddy * ddy < r * r;
+			}
+
+			function collidesWithWalls(pcx, pcy, g, w, h, r) {
+				for (let gy = 0; gy < h; gy++) {
+					for (let gx = 0; gx < w; gx++) {
+						if (g[gy][gx] !== 1) continue;
+						const rx = gx * CELL;
+						const ry = gy * CELL;
+						if (circleRectOverlap(pcx, pcy, r, rx, ry, CELL, CELL)) return true;
+					}
+				}
+				return false;
+			}
+
+			function allWalkableCells(g, w, h) {
+				const o = [];
+				for (let y = 0; y < h; y++) {
+					for (let x = 0; x < w; x++) {
+						if (g[y][x] === 0) o.push([x, y]);
+					}
+				}
+				return o;
+			}
+
+			function pickPetSpawns(g, w, h, exclude) {
+				const ex = new Set(exclude.map((p) => p[1] * w + p[0]));
+				const ok = allWalkableCells(g, w, h).filter((p) => !ex.has(p[1] * w + p[0]));
+				shuffle(ok);
+				if (ok.length < 2) return null;
+				return [cellCenter(ok[0][0], ok[0][1]), cellCenter(ok[1][0], ok[1][1])];
+			}
+
+			const canvas = document.getElementById('gfsim-canvas');
+			const status = document.getElementById('gfsim-status');
+			if (!canvas) return;
+			const ctx = canvas.getContext('2d', { alpha: true });
+			if (!ctx) return;
+			if (typeof canvas.setAttribute === 'function') {
+				canvas.setAttribute('width', String(CANVAS_W));
+				canvas.setAttribute('height', String(CANVAS_H));
+			}
+
+			const g = generateMaze(MAZE_W, MAZE_H);
+			const [goalX, goalY] = findGoal(g, MAZE_W, MAZE_H);
+			const [goalPx, goalPy] = cellCenter(goalX, goalY);
+			const start = bfsFarthest(g, MAZE_W, MAZE_H, goalX, goalY);
+			const [sCellX, sCellY] = start.cell;
+			const [sCx, sCy] = cellCenter(sCellX, sCellY);
+			let playerX = sCx;
+			let playerY = sCy;
+			let face = [0, 1];
+			let gameEnd = null;
+			const petSpawn = pickPetSpawns(g, MAZE_W, MAZE_H, [
+				[goalX, goalY],
+				[sCellX, sCellY],
+			]);
+			let catX;
+			let catY;
+			let dogX;
+			let dogY;
+			if (petSpawn) {
+				[catX, catY] = petSpawn[0];
+				[dogX, dogY] = petSpawn[1];
+			} else {
+				const fb = shuffle(
+					allWalkableCells(g, MAZE_W, MAZE_H).filter(
+						(p) =>
+							(p[0] !== goalX || p[1] !== goalY) &&
+							(p[0] !== sCellX || p[1] !== sCellY),
+					),
+				);
+				[catX, catY] = cellCenter(fb[0][0], fb[0][1]);
+				if (fb.length > 1) {
+					[dogX, dogY] = cellCenter(fb[1][0], fb[1][1]);
+				} else {
+					[dogX, dogY] = [catX, catY];
+				}
+			}
+			const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+			let lastT = performance.now();
+
+			function atGoal() {
+				const dx = playerX - goalPx;
+				const dy = playerY - goalPy;
+				return dx * dx + dy * dy < WIN_DIST * WIN_DIST;
+			}
+
+			function moveEntity(px, py, dirx, diry, speed, dt) {
+				const step = speed * dt;
+				const nx = px + dirx * step;
+				const ny = py + diry * step;
+				let x = px;
+				let y = py;
+				if (!collidesWithWalls(nx, y, g, MAZE_W, MAZE_H, PET_R)) x = nx;
+				if (!collidesWithWalls(x, ny, g, MAZE_W, MAZE_H, PET_R)) y = ny;
+				return [x, y];
+			}
+
+			function tryChasePet(sx, sy, dt) {
+				const d = Math.hypot(playerX - sx, playerY - sy);
+				if (d < 0.1) return [sx, sy];
+				const ddx = (playerX - sx) / d;
+				const ddy = (playerY - sy) / d;
+				return moveEntity(sx, sy, ddx, ddy, PET_SPEED, dt);
+			}
+
+			function isInPlayerLight(sx, sy) {
+				return Math.hypot(playerX - sx, playerY - sy) <= LIGHT_R;
+			}
+
+			function onKeyDown(e) {
+				if (gameEnd) {
+					if (e.key === 'r' || e.key === 'R') {
+						e.preventDefault();
+						location.reload();
+					} else if (e.key in keys) e.preventDefault();
+					return;
+				}
+				if (e.key in keys) {
+					e.preventDefault();
+					keys[e.key] = true;
+				}
+			}
+
+			function onKeyUp(e) {
+				if (e.key in keys) {
+					e.preventDefault();
+					keys[e.key] = false;
+				}
+			}
+
+			window.addEventListener('keydown', onKeyDown, { passive: false });
+			window.addEventListener('keyup', onKeyUp, { passive: false });
+			window.addEventListener('blur', function () {
+				keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
+			});
+
+			function drawMan(cpx, cpy) {
+				const cx = cpx;
+				const cy = cpy;
+				const r = CELL * 0.2;
+				ctx.beginPath();
+				ctx.arc(cx, cy - r * 0.5, r * 0.55, 0, Math.PI * 2);
+				ctx.fillStyle = '#94a3b8';
+				ctx.fill();
+				ctx.beginPath();
+				ctx.fillStyle = '#64748b';
+				ctx.moveTo(cx, cy - r * 0.1);
+				ctx.lineTo(cx - r, cy + r * 1.3);
+				ctx.lineTo(cx + r, cy + r * 1.3);
+				ctx.closePath();
+				ctx.fill();
+			}
+
+			function drawGirl(cpx, cpy) {
+				const cx = cpx;
+				const cy = cpy;
+				const r = CELL * 0.22;
+				ctx.beginPath();
+				ctx.fillStyle = '#f9a8d4';
+				ctx.moveTo(cx, cy - r);
+				ctx.lineTo(cx - r, cy + r * 0.6);
+				ctx.lineTo(cx, cy + r * 0.2);
+				ctx.lineTo(cx + r, cy + r * 0.6);
+				ctx.closePath();
+				ctx.fill();
+				ctx.beginPath();
+				ctx.arc(cx, cy - r * 0.85, r * 0.4, 0, Math.PI * 2);
+				ctx.fillStyle = '#fce7f3';
+				ctx.fill();
+				const a = Math.atan2(face[1], face[0]);
+				const handX = cx + Math.cos(a) * (r * 0.4);
+				const handY = cy + Math.sin(a) * (r * 0.4) + r * 0.1;
+				ctx.beginPath();
+				ctx.arc(handX, handY, r * 0.2, 0, Math.PI * 2);
+				ctx.fillStyle = '#fde68a';
+				ctx.fill();
+			}
+
+			function drawCat(cpx, cpy) {
+				const cx = cpx;
+				const cy = cpy;
+				const r = CELL * 0.2;
+				ctx.beginPath();
+				ctx.ellipse(cx, cy + r * 0.15, r * 0.9, r * 0.55, 0, 0, Math.PI * 2);
+				ctx.fillStyle = '#fdba74';
+				ctx.fill();
+				ctx.beginPath();
+				ctx.arc(cx - r * 0.55, cy - r * 0.1, r * 0.35, 0, Math.PI * 2);
+				ctx.arc(cx + r * 0.55, cy - r * 0.1, r * 0.35, 0, Math.PI * 2);
+				ctx.fillStyle = '#fdba74';
+				ctx.fill();
+				ctx.beginPath();
+				ctx.moveTo(cx - r * 0.75, cy - r * 0.3);
+				ctx.lineTo(cx - r * 0.95, cy - r * 0.7);
+				ctx.lineTo(cx - r * 0.45, cy - r * 0.4);
+				ctx.closePath();
+				ctx.moveTo(cx + r * 0.75, cy - r * 0.3);
+				ctx.lineTo(cx + r * 0.95, cy - r * 0.7);
+				ctx.lineTo(cx + r * 0.45, cy - r * 0.4);
+				ctx.closePath();
+				ctx.fillStyle = '#fb923c';
+				ctx.fill();
+			}
+
+			function drawDog(cpx, cpy) {
+				const cx = cpx;
+				const cy = cpy;
+				const r = CELL * 0.22;
+				ctx.beginPath();
+				ctx.ellipse(cx, cy + r * 0.2, r, r * 0.5, 0, 0, Math.PI * 2);
+				ctx.fillStyle = '#a89f91';
+				ctx.fill();
+				ctx.beginPath();
+				ctx.ellipse(cx + r * 0.65, cy, r * 0.4, r * 0.35, 0, 0, Math.PI * 2);
+				ctx.fillStyle = '#8b5a3c';
+				ctx.fill();
+				ctx.beginPath();
+				ctx.ellipse(cx + r * 1, cy - r * 0.05, r * 0.2, r * 0.22, 0, 0, Math.PI * 2);
+				ctx.fillStyle = '#1f2937';
+				ctx.fill();
+			}
+
+			function drawFrame() {
+				const pxc = playerX;
+				const pyc = playerY;
+				ctx.setTransform(1, 0, 0, 1, 0, 0);
+				ctx.fillStyle = '#09090b';
+				ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+				ctx.beginPath();
+				ctx.arc(pxc, pyc, LIGHT_R, 0, Math.PI * 2);
+				ctx.save();
+				ctx.clip();
+				for (let y = 0; y < MAZE_H; y++) {
+					for (let x = 0; x < MAZE_W; x++) {
+						if (g[y][x] === 1) {
+							ctx.fillStyle = '#3f3f46';
+						} else {
+							ctx.fillStyle = '#18181b';
+						}
+						ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+					}
+				}
+				for (let y = 0; y < MAZE_H; y++) {
+					for (let x = 0; x < MAZE_W; x++) {
+						if (g[y][x] === 0) {
+							ctx.strokeStyle = '#27272a';
+							ctx.lineWidth = 0.5;
+							ctx.strokeRect(x * CELL + 0.25, y * CELL + 0.25, CELL - 0.5, CELL - 0.5);
+						}
+					}
+				}
+
+				drawMan(goalPx, goalPy);
+				drawCat(catX, catY);
+				drawDog(dogX, dogY);
+				drawGirl(playerX, playerY);
+
+				const fall = ctx.createRadialGradient(
+					pxc,
+					pyc,
+					CELL * 0.1,
+					pxc,
+					pyc,
+					LIGHT_R * 0.99,
+				);
+				fall.addColorStop(0, 'rgba(0,0,0,0)');
+				fall.addColorStop(0.28, 'rgba(0,0,0,0)');
+				fall.addColorStop(0.4, 'rgba(0,0,0,0.03)');
+				fall.addColorStop(0.52, 'rgba(0,0,0,0.1)');
+				fall.addColorStop(0.64, 'rgba(0,0,0,0.2)');
+				fall.addColorStop(0.74, 'rgba(0,0,0,0.32)');
+				fall.addColorStop(0.83, 'rgba(0,0,0,0.48)');
+				fall.addColorStop(0.9, 'rgba(0,0,0,0.64)');
+				fall.addColorStop(0.95, 'rgba(0,0,0,0.78)');
+				fall.addColorStop(1, 'rgba(0,0,0,0.9)');
+				ctx.save();
+				ctx.fillStyle = fall;
+				ctx.globalCompositeOperation = 'multiply';
+				ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+				ctx.restore();
+				const rim = ctx.createRadialGradient(
+					pxc,
+					pyc,
+					LIGHT_R * 0.72,
+					pxc,
+					pyc,
+					LIGHT_R,
+				);
+				rim.addColorStop(0, 'rgba(0,0,0,0)');
+				rim.addColorStop(0.55, 'rgba(0,0,0,0)');
+				rim.addColorStop(0.82, 'rgba(6,6,8,0.5)');
+				rim.addColorStop(1, 'rgba(9,9,11,0.88)');
+				ctx.save();
+				ctx.fillStyle = rim;
+				ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+				ctx.restore();
+				ctx.restore();
+			}
+
+			function gameFrame(now) {
+				const t = now !== undefined && now > 0 ? now : performance.now();
+				const dt = Math.min(0.05, (t - lastT) / 1000);
+				lastT = t;
+				if (!gameEnd) {
+					let vx = 0;
+					let vy = 0;
+					if (keys.ArrowUp) vy -= 1;
+					if (keys.ArrowDown) vy += 1;
+					if (keys.ArrowLeft) vx -= 1;
+					if (keys.ArrowRight) vx += 1;
+					const m = Math.hypot(vx, vy);
+					if (m > 1e-6) {
+						vx /= m;
+						vy /= m;
+						face = [vx, vy];
+					}
+					const step = MOVE_SPEED * dt;
+					const nextX = playerX + vx * step;
+					const nextY = playerY + vy * step;
+					if (!collidesWithWalls(nextX, playerY, g, MAZE_W, MAZE_H, PLAYER_R)) playerX = nextX;
+					if (!collidesWithWalls(playerX, nextY, g, MAZE_W, MAZE_H, PLAYER_R)) playerY = nextY;
+
+					if (isInPlayerLight(catX, catY)) {
+						[catX, catY] = tryChasePet(catX, catY, dt);
+					}
+					if (isInPlayerLight(dogX, dogY)) {
+						[dogX, dogY] = tryChasePet(dogX, dogY, dt);
+					}
+					if (Math.hypot(playerX - catX, playerY - catY) < TOUCH_R) {
+						gameEnd = 'lose_cat';
+						if (status) status.textContent = 'You got distracted by gorle 1. Press R to try again.';
+					} else if (Math.hypot(playerX - dogX, playerY - dogY) < TOUCH_R) {
+						gameEnd = 'lose_dog';
+						if (status) status.textContent = 'You got distracted by the poodell. Press R to try again.';
+					} else if (atGoal()) {
+						gameEnd = 'win';
+						if (status) status.textContent = 'I love you. Press R to play again.';
+					}
+				}
+				drawFrame();
+				requestAnimationFrame(gameFrame);
+			}
+			requestAnimationFrame(gameFrame);
+		})();
+	</script>
+	<style>
+		.gfsim-page :global(kbd) {
+			border: 1px solid #3f3f46;
+		}
+	</style>
+</Layout>
